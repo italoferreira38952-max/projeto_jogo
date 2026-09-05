@@ -5,12 +5,15 @@ int main(void){
     const int altu = 450;
 
     InitWindow(largu , altu , "teste-jogo");
-Rectangle botao={400 ,225 ,200 ,200 };
+Vector2 cbotao={400, 225};
+float raio=100.0f;
 int cont = 0;
 
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
-        if(CheckCollisionPointRec(GetMousePosition(),botao) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+        if(CheckCollisionPointCircle(GetMousePosition(),cbotao,raio) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+            cont++;
+        }if(IsKeyPressed(KEY_SPACE)){
             cont++;
         }
         if(IsKeyPressed(KEY_F11)){
@@ -19,8 +22,8 @@ int cont = 0;
 
         BeginDrawing();
         ClearBackground(WHITE);
-        DrawRectangleRec(botao, RED);
-        DrawText("CLIQUE", 310, 300, 20, BLUE);
+        DrawCircleV(cbotao, raio, RED);
+        DrawText("CLIQUE", 365, 215, 20, WHITE);
         DrawText(TextFormat("%d", cont), 50, 15, 40, DARKBLUE);
         EndDrawing();
     }
