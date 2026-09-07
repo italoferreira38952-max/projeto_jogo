@@ -30,6 +30,8 @@ int cont = 0;
 
         BeginDrawing();
         ClearBackground(WHITE);
+        //botão para colocar upgrades
+        DrawRectangle(600,320,170,50,GRAY);
         DrawCircleV(cbotao, raio, RED);
         DrawText("CLIQUE", cbotao.x - 35, cbotao.y - 10, 20, WHITE);
         DrawText(TextFormat("TOTAL DE CLIQUES: %d", cont), 50, 15, 40, DARKBLUE);
