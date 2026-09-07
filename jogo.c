@@ -8,7 +8,6 @@ int main(void){
 //Vector2 cbotao={400, 225};,troquei
 float raio=100.0f;
 int cont = 0;
-
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
 
@@ -23,12 +22,19 @@ int cont = 0;
         if(IsKeyPressed(KEY_F11)){
             ToggleFullscreen();
         }
+        // Se apertar ESC, sai do jogo
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            break;
+        }
 
         BeginDrawing();
         ClearBackground(WHITE);
         DrawCircleV(cbotao, raio, RED);
         DrawText("CLIQUE", cbotao.x - 35, cbotao.y - 10, 20, WHITE);
-        DrawText(TextFormat("%d", cont), 50, 15, 40, DARKBLUE);
+        DrawText(TextFormat("TOTAL DE CLIQUES: %d", cont), 50, 15, 40, DARKBLUE);
+        //adicionei essa informação
+         DrawText("ESPAÇO faz ganhar cliques | ESC sai", 20, altu - 25, 26, GRAY);
         EndDrawing();
     }
 
