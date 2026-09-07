@@ -34,7 +34,7 @@ int cont = 0;
         DrawText("CLIQUE", cbotao.x - 35, cbotao.y - 10, 20, WHITE);
         DrawText(TextFormat("TOTAL DE CLIQUES: %d", cont), 50, 15, 40, DARKBLUE);
         //adicionei essa informação
-         DrawText("ESPAÇO faz ganhar cliques | ESC sai", 20, altu - 25, 26, GRAY);
+         DrawText("ESPAÇO faz ganhar cliques | ESC sai", 20, y - 25, 26, GRAY);
         EndDrawing();
     }
 
