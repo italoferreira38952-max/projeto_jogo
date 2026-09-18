@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include <stdio.h>
 #include <stdlib.h>  
 #include <string.h>   
 typedef enum { 
@@ -44,15 +45,28 @@ int valorClique(Jogador *j) {
 
 int main(void){
 
+    Jogador jogador;
+
+printf("Digite seu nome: ");
+scanf("%29s", jogador.nome);   // leitura de string
+
+char saudacao[60] = "Bem-vindo(a), ";
+strcat(saudacao, jogador.nome);   // concatenação
+printf("%s! Seu nome tem %d letras.\n", saudacao, (int)strlen(jogador.nome));   // tamanho
+
+if (strcmp(jogador.nome, "admin") == 0) {   // comparação
+    jogador.moedas = 1000;   // modo de teste
+} else {
+    jogador.moedas = 0;
+}
+
     const int largu = 800;
     const int altu = 450;
 
     InitWindow(largu , altu , "teste-jogo");
 
 float raio=100.0f;
-Jogador jogador;
 
-jogador.moedas = 0;
 jogador.stats.totalCliques = 0;
 jogador.stats.cliquesManuais = 0;
 
@@ -96,7 +110,7 @@ jogador.upgrades[UPG_BONUS] = (Upgrade){"Bonus Fixo", 0, 20, 5};
         DrawText(TextFormat("Custo: %d", jogador.upgrades[UPG_PODER].custo), 605, 348, 14, WHITE);
         DrawCircleV(cbotao, raio, RED);
         DrawText("CLIQUE", cbotao.x - 35, cbotao.y - 10, 20, WHITE);
-        DrawText(TextFormat("Moedas: %ld", jogador.moedas), 20, 20, 20, DARKBLUE);
+       DrawText(TextFormat("%s - Moedas: %ld", jogador.nome, jogador.moedas), 20, 20, 20, DARKBLUE);
         DrawText(TextFormat("Cliques: %ld", jogador.stats.totalCliques), 20, 50, 20, GRAY);
         //adicionei essa informação
          DrawText("ESPAÇO faz ganhar cliques | ESC sai", 20, y - 25, 26, GRAY);
