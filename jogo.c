@@ -25,6 +25,22 @@ typedef struct {
     Upgrade *upgrades; 
 } Jogador;
 
+void comprarUpgrade(Jogador *j, int i);
+int valorClique(Jogador *j);
+
+void comprarUpgrade(Jogador *j, int i) {
+    Upgrade *u = &j->upgrades[i];   // ponteiro de struct
+    if (j->moedas >= u->custo) {
+        j->moedas -= u->custo;
+        u->nivel++;
+        u->custo += 5;
+    }
+}
+
+int valorClique(Jogador *j) {
+    return 1 + j->upgrades[UPG_PODER].nivel * j->upgrades[UPG_PODER].efeito;
+}
+
 
 int main(void){
 
@@ -52,11 +68,11 @@ jogador.upgrades[UPG_BONUS] = (Upgrade){"Bonus Fixo", 0, 20, 5};
         int y = GetRenderHeight();
         Vector2 cbotao = {(float)x /2.0f, (float)y / 2.0f};
         if(CheckCollisionPointCircle(GetMousePosition(),cbotao,raio) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
-            jogador.moedas++;
+           jogador.moedas += valorClique(&jogador);
             jogador.stats.totalCliques++;
             jogador.stats.cliquesManuais++;
         }if(IsKeyPressed(KEY_SPACE)){
-            jogador.moedas++; 
+           jogador.moedas += valorClique(&jogador);
             jogador.stats.totalCliques++;
             jogador.stats.cliquesManuais++;
         }
@@ -68,11 +84,16 @@ jogador.upgrades[UPG_BONUS] = (Upgrade){"Bonus Fixo", 0, 20, 5};
         {
             break;
         }
-
+        Rectangle caixaUpgrade = {600, 320, 170, 50};
+        if (CheckCollisionPointRec(GetMousePosition(), caixaUpgrade) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        comprarUpgrade(&jogador, UPG_PODER);
+}
         BeginDrawing();
         ClearBackground(WHITE);
         //botão para colocar upgrades
-        DrawRectangle(600,320,170,50,GRAY);
+        DrawRectangle(600, 320, 170, 50, GRAY);
+        DrawText(TextFormat("%s Nv%d", jogador.upgrades[UPG_PODER].nome, jogador.upgrades[UPG_PODER].nivel), 605, 325, 14, WHITE);
+        DrawText(TextFormat("Custo: %d", jogador.upgrades[UPG_PODER].custo), 605, 348, 14, WHITE);
         DrawCircleV(cbotao, raio, RED);
         DrawText("CLIQUE", cbotao.x - 35, cbotao.y - 10, 20, WHITE);
         DrawText(TextFormat("Moedas: %ld", jogador.moedas), 20, 20, 20, DARKBLUE);
