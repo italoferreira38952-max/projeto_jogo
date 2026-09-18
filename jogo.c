@@ -1,4 +1,6 @@
 #include "raylib.h"
+#include <stdlib.h>  
+#include <string.h>   
 typedef enum { 
     UPG_PODER = 0,
     UPG_BONUS,
@@ -11,8 +13,16 @@ typedef struct {
 
 typedef struct {
     char nome[30];
+    int nivel;
+    int custo;
+    int efeito;
+} Upgrade;
+
+typedef struct {
+    char nome[30];
     long moedas;
     Estatisticas stats;
+    Upgrade *upgrades; 
 } Jogador;
 
 
@@ -25,9 +35,16 @@ int main(void){
 
 float raio=100.0f;
 Jogador jogador;
+
 jogador.moedas = 0;
 jogador.stats.totalCliques = 0;
 jogador.stats.cliquesManuais = 0;
+
+jogador.upgrades = malloc(sizeof(Upgrade) * NUM_UPGRADES);
+
+jogador.upgrades[UPG_PODER] = (Upgrade){"Poder de Clique", 0, 10, 1};
+jogador.upgrades[UPG_BONUS] = (Upgrade){"Bonus Fixo", 0, 20, 5};
+
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
 
@@ -64,7 +81,7 @@ jogador.stats.cliquesManuais = 0;
          DrawText("ESPAÇO faz ganhar cliques | ESC sai", 20, y - 25, 26, GRAY);
         EndDrawing();
     }
-
+    free(jogador.upgrades);
     CloseWindow();
     return 0;
 }
