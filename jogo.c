@@ -72,6 +72,8 @@ jogador.stats.cliquesManuais = 0;
 
 jogador.upgrades = malloc(sizeof(Upgrade) * NUM_UPGRADES);
 
+int conquistas[2][2] = {{0, 0}, {0, 0}};
+
 jogador.upgrades[UPG_PODER] = (Upgrade){"Poder de Clique", 0, 10, 1};
 jogador.upgrades[UPG_BONUS] = (Upgrade){"Bonus Fixo", 0, 20, 5};
 
@@ -84,10 +86,18 @@ jogador.upgrades[UPG_BONUS] = (Upgrade){"Bonus Fixo", 0, 20, 5};
         if(CheckCollisionPointCircle(GetMousePosition(),cbotao,raio) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
            jogador.moedas += valorClique(&jogador);
             jogador.stats.totalCliques++;
+            if (jogador.stats.totalCliques >= 5)   conquistas[0][0] = 1;
+            if (jogador.stats.totalCliques >= 10)  conquistas[0][1] = 1;
+            if (jogador.stats.totalCliques >= 25)  conquistas[1][0] = 1;
+            if (jogador.stats.totalCliques >= 50)  conquistas[1][1] = 1;
             jogador.stats.cliquesManuais++;
         }if(IsKeyPressed(KEY_SPACE)){
            jogador.moedas += valorClique(&jogador);
             jogador.stats.totalCliques++;
+            if (jogador.stats.totalCliques >= 5)   conquistas[0][0] = 1;
+            if (jogador.stats.totalCliques >= 10)  conquistas[0][1] = 1;
+            if (jogador.stats.totalCliques >= 25)  conquistas[1][0] = 1;
+            if (jogador.stats.totalCliques >= 50)  conquistas[1][1] = 1;
             jogador.stats.cliquesManuais++;
         }
         if(IsKeyPressed(KEY_F11)){
@@ -104,13 +114,20 @@ jogador.upgrades[UPG_BONUS] = (Upgrade){"Bonus Fixo", 0, 20, 5};
 }
         BeginDrawing();
         ClearBackground(WHITE);
+
+        DrawText("Conquistas:", 600, 0, 16, DARKGRAY);
+        for (int l = 0; l < 2; l++) {
+        for (int a = 0; a < 2; a++) {
+        DrawRectangle(600 + a * 30, 20 + l * 30, 25, 25, conquistas[l][a] ? GOLD : LIGHTGRAY);}}
         //botão para colocar upgrades
         DrawRectangle(600, 320, 170, 50, GRAY);
         DrawText(TextFormat("%s Nv%d", jogador.upgrades[UPG_PODER].nome, jogador.upgrades[UPG_PODER].nivel), 605, 325, 14, WHITE);
         DrawText(TextFormat("Custo: %d", jogador.upgrades[UPG_PODER].custo), 605, 348, 14, WHITE);
+
         DrawCircleV(cbotao, raio, RED);
         DrawText("CLIQUE", cbotao.x - 35, cbotao.y - 10, 20, WHITE);
-       DrawText(TextFormat("%s - Moedas: %ld", jogador.nome, jogador.moedas), 20, 20, 20, DARKBLUE);
+
+        DrawText(TextFormat("%s - Moedas: %ld", jogador.nome, jogador.moedas), 20, 20, 20, DARKBLUE);
         DrawText(TextFormat("Cliques: %ld", jogador.stats.totalCliques), 20, 50, 20, GRAY);
         //adicionei essa informação
          DrawText("ESPAÇO faz ganhar cliques | ESC sai", 20, y - 25, 26, GRAY);
