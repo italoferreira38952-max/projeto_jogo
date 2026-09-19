@@ -34,9 +34,13 @@ int main(void) {
     printf("Digite seu nome: ");
     scanf("%29s", jogador.nome);
 
+    char nomeOriginal[30];
+    strcpy(nomeOriginal, jogador.nome);
+
     char saudacao[60] = "Bem-vindo(a), ";
     strcat(saudacao, jogador.nome);
     printf("%s! Seu nome tem %d letras.\n", saudacao, (int)strlen(jogador.nome));
+    printf("Copia de seguranca do nome original: %s\n", nomeOriginal);
 
     if (strcmp(jogador.nome, "admin") == 0) {
         jogador.moedas = 1000;
