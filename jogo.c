@@ -77,10 +77,10 @@ int main(void) {
             jogador.stats.cliquesManuais++;
         }
 
-        if (jogador.stats.totalCliques >= 5)  conquistas[0][0] = 1;
-        if (jogador.stats.totalCliques >= 10) conquistas[0][1] = 1;
-        if (jogador.stats.totalCliques >= 25) conquistas[1][0] = 1;
-        if (jogador.stats.totalCliques >= 50) conquistas[1][1] = 1;
+        if (jogador.stats.totalCliques >= 25)  conquistas[0][0] = 1;
+        if (jogador.stats.totalCliques >= 50) conquistas[0][1] = 1;
+        if (jogador.stats.totalCliques >= 200) conquistas[1][0] = 1;
+        if (jogador.stats.totalCliques >= 500) conquistas[1][1] = 1;
 
         if (IsKeyPressed(KEY_F11)) ToggleFullscreen();
         if (IsKeyPressed(KEY_ESCAPE)) break;
