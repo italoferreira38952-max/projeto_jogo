@@ -61,6 +61,13 @@ int main(void) {
     const int altu = 450;
     InitWindow(largu, altu, "teste-jogo");
     SetTargetFPS(60);
+    Texture2D texFundo = LoadTexture("assets/fundo.png");
+Texture2D texBotao = LoadTexture("assets/botao.png");
+SetTextureFilter(texFundo, TEXTURE_FILTER_POINT);  // mantém o pixel art nítido
+SetTextureFilter(texBotao, TEXTURE_FILTER_POINT);
+
+const int NUM_FRAMES = 4;
+float larguraFrame = (float)texBotao.width / NUM_FRAMES;  // 256
 
     while (!WindowShouldClose()) {
         int x = GetRenderWidth();
@@ -88,8 +95,25 @@ int main(void) {
         BeginDrawing();
         ClearBackground(WHITE);
 
-        DrawCircleV(cbotao, raio, RED);
-        DrawText("CLIQUE", (int)cbotao.x - 35, (int)cbotao.y - 10, 20, WHITE);
+       ClearBackground(WHITE);
+
+// fundo
+DrawTexturePro(texFundo,
+    (Rectangle){0, 0, (float)texFundo.width, (float)texFundo.height},
+    (Rectangle){0, 0, (float)x, (float)y},
+    (Vector2){0, 0}, 0.0f, WHITE);
+
+// botão: frame 2 (apertado) enquanto segura, frame 0 (solto) no resto
+int segurando = (IsMouseButtonDown(MOUSE_LEFT_BUTTON) &&
+                 CheckCollisionPointCircle(GetMousePosition(), cbotao, raio))
+                || IsKeyDown(KEY_SPACE);
+int frame = segurando ? 2 : 0;
+
+float tam = raio * 2.1f;  // o desenho ocupa quase toda a célula
+DrawTexturePro(texBotao,
+    (Rectangle){frame * larguraFrame, 0, larguraFrame, (float)texBotao.height},
+    (Rectangle){cbotao.x, cbotao.y, tam, tam},
+    (Vector2){tam / 2, tam / 2}, 0.0f, WHITE);
 
         DrawText(TextFormat("%s - Moedas: %ld", jogador.nome, jogador.moedas), 20, 20, 20, DARKBLUE);
         DrawText(TextFormat("Cliques totais: %ld", jogador.stats.totalCliques), 20, 50, 20, GRAY);
@@ -108,6 +132,8 @@ int main(void) {
     }
 
     free(jogador.upgrades);
+    UnloadTexture(texFundo);
+UnloadTexture(texBotao);
     CloseWindow();
     return 0;
 }
