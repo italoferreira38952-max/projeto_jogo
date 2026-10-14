@@ -63,13 +63,13 @@ int main(void) {
     SetTargetFPS(60);
 
     // texturas (mantém o pixel art nítido)
-    Texture2D texFundo = LoadTexture("assets/fundo.png");
+    Texture2D texFundo = LoadTexture("assets/wall.png");
     Texture2D texBotao = LoadTexture("assets/botao.png");
     SetTextureFilter(texFundo, TEXTURE_FILTER_POINT);
     SetTextureFilter(texBotao, TEXTURE_FILTER_POINT);
 
     // avisos no terminal se algum arquivo não for encontrado
-    if (texFundo.id == 0) TraceLog(LOG_WARNING, "NAO ACHOU assets/fundo.png (confira pasta e nome)");
+    if (texFundo.id == 0) TraceLog(LOG_WARNING, "NAO ACHOU assets/wall.png (confira pasta e nome)");
     if (texBotao.id == 0) TraceLog(LOG_WARNING, "NAO ACHOU assets/botao.png (confira pasta e nome)");
 
     // fonte Matcha Style: ASCII + acentos do português
