@@ -26,7 +26,7 @@ typedef struct {
 
 void comprarUpgrade(Jogador *j, int i);
 int valorClique(Jogador *j);
-void desenharUpgrades(Jogador *j, int mouseX, int mouseY, int cliqueMouse);
+void desenharUpgrades(Jogador *j, Font fonte, int mouseX, int mouseY, int cliqueMouse);
 
 int main(void) {
     Jogador jogador;
@@ -61,13 +61,38 @@ int main(void) {
     const int altu = 450;
     InitWindow(largu, altu, "teste-jogo");
     SetTargetFPS(60);
-    Texture2D texFundo = LoadTexture("assets/fundo.png");
-Texture2D texBotao = LoadTexture("assets/botao.png");
-SetTextureFilter(texFundo, TEXTURE_FILTER_POINT);  // mantém o pixel art nítido
-SetTextureFilter(texBotao, TEXTURE_FILTER_POINT);
 
-const int NUM_FRAMES = 4;
-float larguraFrame = (float)texBotao.width / NUM_FRAMES;  // 256
+    // texturas (mantém o pixel art nítido)
+    Texture2D texFundo = LoadTexture("assets/fundo.png");
+    Texture2D texBotao = LoadTexture("assets/botao.png");
+    SetTextureFilter(texFundo, TEXTURE_FILTER_POINT);
+    SetTextureFilter(texBotao, TEXTURE_FILTER_POINT);
+
+    // avisos no terminal se algum arquivo não for encontrado
+    if (texFundo.id == 0) TraceLog(LOG_WARNING, "NAO ACHOU assets/fundo.png (confira pasta e nome)");
+    if (texBotao.id == 0) TraceLog(LOG_WARNING, "NAO ACHOU assets/botao.png (confira pasta e nome)");
+
+    // fonte Matcha Style: ASCII + acentos do português
+    int codepoints[256];
+    int nCodepoints = 0;
+    for (int i = 32; i < 127; i++) codepoints[nCodepoints++] = i;
+
+    const char *extras = "áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ";
+    for (int i = 0; extras[i] != '\0'; ) {
+        int bytes;
+        codepoints[nCodepoints++] = GetCodepoint(&extras[i], &bytes);
+        i += bytes;
+    }
+
+    // carrega em tamanho grande (48) e desenha menor; filtro suave (não é fonte pixel)
+    Font fonte = LoadFontEx("assets/Matcha_Style.ttf", 48, codepoints, nCodepoints);
+    SetTextureFilter(fonte.texture, TEXTURE_FILTER_BILINEAR);
+    if (fonte.texture.id == GetFontDefault().texture.id)
+        TraceLog(LOG_WARNING, "NAO ACHOU assets/Matcha_Style.ttf (usando fonte padrao)");
+
+    // o PNG do botão tem 4 frames lado a lado
+    const int NUM_FRAMES = 4;
+    float larguraFrame = (float)texBotao.width / NUM_FRAMES;
 
     while (!WindowShouldClose()) {
         int x = GetRenderWidth();
@@ -85,7 +110,7 @@ float larguraFrame = (float)texBotao.width / NUM_FRAMES;  // 256
         }
 
         if (jogador.stats.totalCliques >= 25)  conquistas[0][0] = 1;
-        if (jogador.stats.totalCliques >= 50) conquistas[0][1] = 1;
+        if (jogador.stats.totalCliques >= 50)  conquistas[0][1] = 1;
         if (jogador.stats.totalCliques >= 200) conquistas[1][0] = 1;
         if (jogador.stats.totalCliques >= 500) conquistas[1][1] = 1;
 
@@ -95,45 +120,49 @@ float larguraFrame = (float)texBotao.width / NUM_FRAMES;  // 256
         BeginDrawing();
         ClearBackground(WHITE);
 
-       ClearBackground(WHITE);
+        // fundo
+        DrawTexturePro(texFundo,
+            (Rectangle){0, 0, (float)texFundo.width, (float)texFundo.height},
+            (Rectangle){0, 0, (float)x, (float)y},
+            (Vector2){0, 0}, 0.0f, WHITE);
 
-// fundo
-DrawTexturePro(texFundo,
-    (Rectangle){0, 0, (float)texFundo.width, (float)texFundo.height},
-    (Rectangle){0, 0, (float)x, (float)y},
-    (Vector2){0, 0}, 0.0f, WHITE);
+        // botão: frame 2 (apertado) enquanto segura, frame 0 (solto) no resto
+        int segurando = (IsMouseButtonDown(MOUSE_LEFT_BUTTON) &&
+                         CheckCollisionPointCircle(GetMousePosition(), cbotao, raio))
+                        || IsKeyDown(KEY_SPACE);
+        int frame = segurando ? 2 : 0;
 
-// botão: frame 2 (apertado) enquanto segura, frame 0 (solto) no resto
-int segurando = (IsMouseButtonDown(MOUSE_LEFT_BUTTON) &&
-                 CheckCollisionPointCircle(GetMousePosition(), cbotao, raio))
-                || IsKeyDown(KEY_SPACE);
-int frame = segurando ? 2 : 0;
+        float tam = raio * 2.1f;  // o desenho ocupa quase toda a célula
+        DrawTexturePro(texBotao,
+            (Rectangle){frame * larguraFrame, 0, larguraFrame, (float)texBotao.height},
+            (Rectangle){cbotao.x, cbotao.y, tam, tam},
+            (Vector2){tam / 2, tam / 2}, 0.0f, WHITE);
 
-float tam = raio * 2.1f;  // o desenho ocupa quase toda a célula
-DrawTexturePro(texBotao,
-    (Rectangle){frame * larguraFrame, 0, larguraFrame, (float)texBotao.height},
-    (Rectangle){cbotao.x, cbotao.y, tam, tam},
-    (Vector2){tam / 2, tam / 2}, 0.0f, WHITE);
+        // textos com a fonte Matcha Style
+        DrawTextEx(fonte, TextFormat("%s - Moedas: %ld", jogador.nome, jogador.moedas),
+                   (Vector2){20, 20}, 30, 1, GOLD);
+        DrawTextEx(fonte, TextFormat("Cliques totais: %ld", jogador.stats.totalCliques),
+                   (Vector2){20, 58}, 22, 1, RAYWHITE);
+        DrawTextEx(fonte, TextFormat("Cliques manuais: %ld", jogador.stats.cliquesManuais),
+                   (Vector2){20, 84}, 22, 1, RAYWHITE);
 
-        DrawText(TextFormat("%s - Moedas: %ld", jogador.nome, jogador.moedas), 20, 20, 20, DARKBLUE);
-        DrawText(TextFormat("Cliques totais: %ld", jogador.stats.totalCliques), 20, 50, 20, GRAY);
-        DrawText(TextFormat("Cliques manuais: %ld", jogador.stats.cliquesManuais), 20, 75, 20, GRAY);
+        desenharUpgrades(&jogador, fonte, GetMouseX(), GetMouseY(), cliqueMouse);
 
-        desenharUpgrades(&jogador, GetMouseX(), GetMouseY(), cliqueMouse);
-
-        DrawText("Conquistas:", 600, 0, 16, DARKGRAY);
+        DrawTextEx(fonte, "Conquistas:", (Vector2){600, 0}, 22, 1, RAYWHITE);
         for (int l = 0; l < 2; l++)
             for (int c = 0; c < 2; c++)
-                DrawRectangle(600 + c * 30, 20 + l * 30, 25, 25, conquistas[l][c] ? GOLD : LIGHTGRAY);
+                DrawRectangle(600 + c * 30, 26 + l * 30, 25, 25, conquistas[l][c] ? GOLD : LIGHTGRAY);
 
-        DrawText("ESPAÇO faz ganhar cliques | ESC sai", 20, y - 25, 26, GRAY);
+        DrawTextEx(fonte, "ESPAÇO faz ganhar cliques | ESC sai",
+                   (Vector2){20, (float)(y - 34)}, 22, 1, RAYWHITE);
 
         EndDrawing();
     }
 
     free(jogador.upgrades);
     UnloadTexture(texFundo);
-UnloadTexture(texBotao);
+    UnloadTexture(texBotao);
+    UnloadFont(fonte);
     CloseWindow();
     return 0;
 }
@@ -153,10 +182,11 @@ int valorClique(Jogador *j) {
     return base + bonus;
 }
 
-void desenharUpgrades(Jogador *j, int mouseX, int mouseY, int cliqueMouse) {
+void desenharUpgrades(Jogador *j, Font fonte, int mouseX, int mouseY, int cliqueMouse) {
     for (int i = 0; i < NUM_UPGRADES; i++) {
         Upgrade *u = &j->upgrades[i];
-        Rectangle caixa = {600, (float)(100 + i * 60), 180, 50};
+        // caixa mais larga (240) para caber "Poder de Clique Nv10" na Matcha Style
+        Rectangle caixa = {550, (float)(110 + i * 64), 240, 56};
         Color cor = LIGHTGRAY;
 
         if (CheckCollisionPointRec((Vector2){(float)mouseX, (float)mouseY}, caixa)) {
@@ -165,7 +195,9 @@ void desenharUpgrades(Jogador *j, int mouseX, int mouseY, int cliqueMouse) {
         }
 
         DrawRectangleRec(caixa, cor);
-        DrawText(TextFormat("%s Nv%d", u->nome, u->nivel), (int)caixa.x + 5, (int)caixa.y + 5, 14, BLACK);
-        DrawText(TextFormat("Custo: %d", u->custo), (int)caixa.x + 5, (int)caixa.y + 28, 14, DARKGRAY);
+        DrawTextEx(fonte, TextFormat("%s Nv%d", u->nome, u->nivel),
+                   (Vector2){caixa.x + 6, caixa.y + 6}, 18, 1, BLACK);
+        DrawTextEx(fonte, TextFormat("Custo: %d", u->custo),
+                   (Vector2){caixa.x + 6, caixa.y + 30}, 18, 1, DARKGRAY);
     }
 }
