@@ -40,6 +40,7 @@ int main(void) {
     const int largu = 800;
     const int altu = 450;
     InitWindow(largu, altu, "teste-jogo");
+    InitAudioDevice();
     SetTargetFPS(60);
 
     // texturas (mantém o pixel art nítido)
@@ -47,7 +48,8 @@ int main(void) {
     Texture2D texBotao = LoadTexture("assets/botao.png");
     SetTextureFilter(texFundo, TEXTURE_FILTER_POINT);
     SetTextureFilter(texBotao, TEXTURE_FILTER_POINT);
-
+   
+    Sound som = LoadSound("assets/clique.wav");
     // avisos no terminal se algum arquivo não for encontrado
     if (texFundo.id == 0) TraceLog(LOG_WARNING, "NAO ACHOU assets/wall.png (confira pasta e nome)");
     if (texBotao.id == 0) TraceLog(LOG_WARNING, "NAO ACHOU assets/botao.png (confira pasta e nome)");
@@ -129,6 +131,7 @@ int main(void) {
                 jogador.moedas += valorClique(&jogador);
                 jogador.stats.totalCliques++;
                 jogador.stats.cliquesManuais++;
+                PlaySound(som);
             }
 
             if (jogador.stats.totalCliques >= 25)  conquistas[0][0] = 1;
@@ -212,6 +215,8 @@ int main(void) {
     UnloadTexture(texFundo);
     UnloadTexture(texBotao);
     UnloadFont(fonte);
+    UnloadSound(som);
+    CloseAudioDevice();
     CloseWindow();
     return 0;
 }
