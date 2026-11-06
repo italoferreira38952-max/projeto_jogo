@@ -52,6 +52,8 @@ typedef struct {
 int carregarRanking(Registro v[]);
 void registrarRanking(Jogador *j);
 void ordenarRanking(Registro v[], int n, int porNome);
+int buscaLinear(Registro v[], int n, const char *nome, int *comp);
+int buscaBinaria(Registro v[], int n, long cliques, int *comp);
 
 int salvarJogo(Jogador *j, int conq[2][2]);
 int carregarJogo(Jogador *j, int conq[2][2]);
@@ -117,6 +119,15 @@ int main(void) {
     int mostrarRanking = 0; // 1 = tela de ranking aberta
     int ordemPorNome = 0;   // 0 = por cliques (maior primeiro), 1 = por nome (A-Z)
 
+    // busca no ranking
+    int modoBusca = 0;       // 0 = nenhuma, 1 = linear (nome), 2 = binária (cliques)
+    char termo[30] = "";     // texto digitado na busca
+    int termoCount = 0;
+    int indiceAchado = -1;   // posição achada (-1 = não achou)
+    int comparacoes = 0;     // quantas comparações a última busca fez
+    int buscou = 0;          // 1 = existe resultado para mostrar
+    int tipoUltimaBusca = 0;
+
     while (!WindowShouldClose()) {
         int x = GetRenderWidth();
         int y = GetRenderHeight();
@@ -174,23 +185,67 @@ int main(void) {
             int cliqueMouse = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
             int acertouBotao = cliqueMouse && CheckCollisionPointCircle(GetMousePosition(), cbotao, raio);
 
-            // tecla R abre/fecha o ranking: lê o arquivo, soma a partida atual e ordena
-            if (IsKeyPressed(KEY_R)) {
-                mostrarRanking = !mostrarRanking;
-                if (mostrarRanking) {
-                    nRanking = carregarRanking(ranking);
-                    if (nRanking < MAX_RANKING) {
-                        strcpy(ranking[nRanking].nome, jogador.nome);
-                        ranking[nRanking].cliques = jogador.stats.totalCliques;
-                        nRanking++;
+            if (mostrarRanking && modoBusca != 0) {
+                // digitando o termo da busca
+                int key = GetCharPressed();
+                int limite = (modoBusca == 1) ? 28 : 9;
+                while (key > 0) {
+                    int ok = (modoBusca == 1) ? (key >= 32 && key <= 125) : (key >= '0' && key <= '9');
+                    if (ok && termoCount < limite) {
+                        termo[termoCount++] = (char)key;
+                        termo[termoCount] = '\0';
                     }
-                    ordenarRanking(ranking, nRanking, ordemPorNome);
+                    key = GetCharPressed();
+                }
+                if (IsKeyPressed(KEY_BACKSPACE) && termoCount > 0) termo[--termoCount] = '\0';
+
+                if (IsKeyPressed(KEY_ENTER) && termoCount > 0) {
+                    comparacoes = 0;
+                    if (modoBusca == 1) {
+                        indiceAchado = buscaLinear(ranking, nRanking, termo, &comparacoes);
+                    } else {
+                        // a busca binária exige o vetor ordenado por cliques
+                        if (ordemPorNome) {
+                            ordemPorNome = 0;
+                            ordenarRanking(ranking, nRanking, ordemPorNome);
+                        }
+                        indiceAchado = buscaBinaria(ranking, nRanking, atol(termo), &comparacoes);
+                    }
+                    tipoUltimaBusca = modoBusca;
+                    buscou = 1;
+                    modoBusca = 0;
                 }
             }
-            // TAB troca o critério de ordenação
-            if (mostrarRanking && IsKeyPressed(KEY_TAB)) {
-                ordemPorNome = !ordemPorNome;
-                ordenarRanking(ranking, nRanking, ordemPorNome);
+            else {
+                // R abre/fecha o ranking: lê o arquivo, soma a partida atual e ordena
+                if (IsKeyPressed(KEY_R)) {
+                    mostrarRanking = !mostrarRanking;
+                    modoBusca = 0; buscou = 0; indiceAchado = -1;
+                    if (mostrarRanking) {
+                        nRanking = carregarRanking(ranking);
+                        if (nRanking < MAX_RANKING) {
+                            strcpy(ranking[nRanking].nome, jogador.nome);
+                            ranking[nRanking].cliques = jogador.stats.totalCliques;
+                            nRanking++;
+                        }
+                        ordenarRanking(ranking, nRanking, ordemPorNome);
+                    }
+                }
+                if (mostrarRanking) {
+                    // TAB troca o critério de ordenação
+                    if (IsKeyPressed(KEY_TAB)) {
+                        ordemPorNome = !ordemPorNome;
+                        ordenarRanking(ranking, nRanking, ordemPorNome);
+                        buscou = 0; indiceAchado = -1;
+                    }
+                    // L = busca linear por nome, B = busca binária por cliques
+                    if (IsKeyPressed(KEY_L) || IsKeyPressed(KEY_B)) {
+                        modoBusca = IsKeyPressed(KEY_L) ? 1 : 2;
+                        termo[0] = '\0'; termoCount = 0;
+                        buscou = 0; indiceAchado = -1;
+                        while (GetCharPressed() > 0) {} // descarta a letra da própria tecla
+                    }
+                }
             }
 
             if (!mostrarRanking && (acertouBotao || IsKeyPressed(KEY_SPACE))) {
@@ -216,7 +271,7 @@ int main(void) {
             if (jogador.stats.totalCliques >= 500) conquistas[1][1] = 1;
 
             // tecla S salva o jogo no arquivo binário
-            if (IsKeyPressed(KEY_S)) {
+            if (IsKeyPressed(KEY_S) && modoBusca == 0) {
                 textoMsg = salvarJogo(&jogador, conquistas) ? "Jogo salvo!" : "Erro ao salvar!";
                 tempoMsg = 2.5f;
             }
@@ -298,21 +353,40 @@ int main(void) {
 
             // tela de ranking (por cima do jogo)
             if (mostrarRanking) {
-                Rectangle painel = {x * 0.15f, y * 0.08f, x * 0.70f, y * 0.80f};
+                Rectangle painel = {x * 0.15f, y * 0.08f, x * 0.70f, y * 0.84f};
                 desenharCaixa(painel, COR_CAIXA);
                 DrawTextEx(fonte, "RANKING", (Vector2){painel.x + 20, painel.y + 12}, 30, 1, COR_TEXTO_CLARO);
                 DrawTextEx(fonte, ordemPorNome ? "Ordem: nome (A-Z)  |  TAB muda" : "Ordem: cliques (maior primeiro)  |  TAB muda",
-                           (Vector2){painel.x + 20, painel.y + 50}, 18, 1, COR_TEXTO_SUAVE);
+                           (Vector2){painel.x + 20, painel.y + 48}, 18, 1, COR_TEXTO_SUAVE);
 
-                int mostrar = nRanking < 8 ? nRanking : 8;
-                for (int i = 0; i < mostrar; i++) {
-                    float ly = painel.y + 85 + i * 30;
+                // mostra 6 linhas; se o achado estiver mais embaixo, a lista "rola" até ele
+                int inicio = (indiceAchado >= 6) ? indiceAchado - 5 : 0;
+                int mostrar = (nRanking - inicio) < 6 ? (nRanking - inicio) : 6;
+                for (int k = 0; k < mostrar; k++) {
+                    int i = inicio + k;
+                    float ly = painel.y + 80 + k * 28;
+                    if (i == indiceAchado)
+                        DrawRectangle((int)painel.x + 10, (int)ly - 3, (int)painel.width - 20, 28, COR_PRECO_OK);
                     DrawTextEx(fonte, TextFormat("%d.", i + 1), (Vector2){painel.x + 20, ly}, 22, 1, COR_TEXTO_CLARO);
                     DrawTextEx(fonte, ranking[i].nome, (Vector2){painel.x + 60, ly}, 22, 1, COR_TEXTO_CLARO);
                     DrawTextEx(fonte, TextFormat("%ld", ranking[i].cliques),
                                (Vector2){painel.x + painel.width - 140, ly}, 22, 1, COR_TEXTO_CLARO);
                 }
-                DrawTextEx(fonte, "R fecha", (Vector2){painel.x + 20, painel.y + painel.height - 32}, 18, 1, COR_TEXTO_SUAVE);
+
+                // área da busca
+                DrawTextEx(fonte, "L: busca linear (nome)   B: busca binária (cliques)",
+                           (Vector2){painel.x + 20, painel.y + painel.height - 78}, 18, 1, COR_TEXTO_SUAVE);
+                if (modoBusca != 0) {
+                    DrawTextEx(fonte, TextFormat("%s: %s_   (ENTER busca)", modoBusca == 1 ? "Nome" : "Cliques", termo),
+                               (Vector2){painel.x + 20, painel.y + painel.height - 52}, 20, 1, COR_TEXTO_CLARO);
+                } else if (buscou) {
+                    const char *tipo = (tipoUltimaBusca == 1) ? "Linear" : "Binária";
+                    const char *res = (indiceAchado >= 0)
+                        ? TextFormat("%s: achou na posição %d (%d comparações)", tipo, indiceAchado + 1, comparacoes)
+                        : TextFormat("%s: não encontrado (%d comparações)", tipo, comparacoes);
+                    DrawTextEx(fonte, res, (Vector2){painel.x + 20, painel.y + painel.height - 52}, 20, 1, GOLD);
+                }
+                DrawTextEx(fonte, "R fecha", (Vector2){painel.x + 20, painel.y + painel.height - 26}, 18, 1, COR_TEXTO_SUAVE);
             }
         }
 
@@ -496,4 +570,29 @@ void ordenarRanking(Registro v[], int n, int porNome) {
             }
         }
     }
+}
+
+// ---------- Busca no ranking ----------
+// Busca linear: percorre do começo ao fim. Funciona com o vetor em qualquer ordem.
+// Retorna a posição (0..n-1) ou -1; comp recebe o número de comparações.
+int buscaLinear(Registro v[], int n, const char *nome, int *comp) {
+    for (int i = 0; i < n; i++) {
+        (*comp)++;
+        if (strcmp(v[i].nome, nome) == 0) return i;
+    }
+    return -1;
+}
+
+// Busca binária: o vetor PRECISA estar ordenado por cliques (decrescente).
+// A cada passo olha o meio e descarta metade do vetor.
+int buscaBinaria(Registro v[], int n, long cliques, int *comp) {
+    int ini = 0, fim = n - 1;
+    while (ini <= fim) {
+        int meio = (ini + fim) / 2;
+        (*comp)++;
+        if (v[meio].cliques == cliques) return meio;
+        if (v[meio].cliques > cliques) ini = meio + 1; // decrescente: o valor está depois
+        else fim = meio - 1;
+    }
+    return -1;
 }
