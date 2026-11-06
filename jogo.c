@@ -38,6 +38,10 @@ typedef struct {
     Upgrade *upgrades;
 } Jogador;
 
+#define ARQUIVO_SAVE "save.txt"
+
+int salvarJogo(Jogador *j, int conq[2][2]);
+int carregarJogo(Jogador *j, int conq[2][2]);
 void comprarUpgrade(Jogador *j, int i);
 int valorClique(Jogador *j);
 int cliquesPorSegundo(Jogador *j);
@@ -92,6 +96,8 @@ int main(void) {
 
     float tempoApertado = 0.0f; // mantém o botão afundado um instante depois do clique
     float acumAuto = 0.0f;      // conta o tempo para o Auto Clique (1 tick por segundo)
+    float tempoMsg = 0.0f;      // tempo restante da mensagem de save/load na tela
+    const char *textoMsg = "";
 
     while (!WindowShouldClose()) {
         int x = GetRenderWidth();
@@ -137,6 +143,12 @@ int main(void) {
                 jogador.upgrades[UPG_BONUS] = (Upgrade){"Bonus Fixo", 0, 20, 5};
                 jogador.upgrades[UPG_AUTO]  = (Upgrade){"Auto Clique", 0, 50, 1}; // efeito = cliques/seg por nível
 
+                // se existir save deste jogador, restaura o progresso
+                if (carregarJogo(&jogador, conquistas)) {
+                    textoMsg = "Progresso carregado!";
+                    tempoMsg = 2.5f;
+                }
+
                 estadoAtual = ESTADO_JOGANDO;
             }
         }
@@ -165,6 +177,13 @@ int main(void) {
             if (jogador.stats.totalCliques >= 50)  conquistas[0][1] = 1;
             if (jogador.stats.totalCliques >= 200) conquistas[1][0] = 1;
             if (jogador.stats.totalCliques >= 500) conquistas[1][1] = 1;
+
+            // tecla S salva o jogo no arquivo binário
+            if (IsKeyPressed(KEY_S)) {
+                textoMsg = salvarJogo(&jogador, conquistas) ? "Jogo salvo!" : "Erro ao salvar!";
+                tempoMsg = 2.5f;
+            }
+            if (tempoMsg > 0) tempoMsg -= GetFrameTime();
 
             if (IsKeyPressed(KEY_F11)) ToggleFullscreen();
         }
@@ -233,7 +252,10 @@ int main(void) {
                 }
             }
 
-            DrawTextEx(fonte, "ESPAÇO faz ganhar cliques | ESC sai",
+            if (tempoMsg > 0)
+                DrawTextEx(fonte, textoMsg, (Vector2){20, 140}, 22, 1, COR_NAVY);
+
+            DrawTextEx(fonte, "ESPAÇO clica | S salva | ESC salva e sai",
                        (Vector2){20, (float)(y - 34)}, 22, 1, COR_NAVY);
         }
 
@@ -241,6 +263,7 @@ int main(void) {
     }
 
     if (estadoAtual == ESTADO_JOGANDO) {
+        salvarJogo(&jogador, conquistas); // salva automaticamente ao sair
         free(jogador.upgrades);
     }
     UnloadTexture(texBotao);
@@ -320,4 +343,53 @@ void desenharUpgrades(Jogador *j, Font fonte, int mouseX, int mouseY, int clique
         DrawTextEx(fonte, TextFormat("Nivel %d", u->nivel),
                    (Vector2){caixa.x + 10, caixa.y + alt * 0.52f}, 16, 1, COR_TEXTO_SUAVE);
     }
+}
+
+// ---------- Save em arquivo de texto ----------
+
+int salvarJogo(Jogador *j, int conq[2][2]) {
+    FILE *f = fopen(ARQUIVO_SAVE, "w");
+    if (f == NULL) return 0;
+
+    fprintf(f, "%s\n", j->nome);
+    fprintf(f, "%ld %ld %ld\n", j->moedas, j->stats.totalCliques, j->stats.cliquesManuais);
+    for (int i = 0; i < NUM_UPGRADES; i++)
+        fprintf(f, "%d %d ", j->upgrades[i].nivel, j->upgrades[i].custo);
+    fprintf(f, "\n");
+    fprintf(f, "%d %d %d %d\n", conq[0][0], conq[0][1], conq[1][0], conq[1][1]);
+
+    fclose(f);
+    return 1;
+}
+
+// Lê save.txt. Só restaura se o arquivo existir e for do mesmo nome de jogador.
+// Retorna 1 se carregou, 0 caso contrário.
+int carregarJogo(Jogador *j, int conq[2][2]) {
+    FILE *f = fopen(ARQUIVO_SAVE, "r");
+    if (f == NULL) return 0; // ainda não existe save
+
+    char nome[30];
+    if (fgets(nome, sizeof(nome), f) == NULL) { fclose(f); return 0; }
+    nome[strcspn(nome, "\n")] = '\0'; // tira o \n do final
+    if (strcmp(nome, j->nome) != 0) { fclose(f); return 0; }
+
+    long moedas, total, manuais;
+    int niveis[NUM_UPGRADES], custos[NUM_UPGRADES], q[4];
+
+    if (fscanf(f, "%ld %ld %ld", &moedas, &total, &manuais) != 3) { fclose(f); return 0; }
+    for (int i = 0; i < NUM_UPGRADES; i++)
+        if (fscanf(f, "%d %d", &niveis[i], &custos[i]) != 2) { fclose(f); return 0; }
+    if (fscanf(f, "%d %d %d %d", &q[0], &q[1], &q[2], &q[3]) != 4) { fclose(f); return 0; }
+    fclose(f);
+
+    j->moedas = moedas;
+    j->stats.totalCliques = total;
+    j->stats.cliquesManuais = manuais;
+    for (int i = 0; i < NUM_UPGRADES; i++) {
+        j->upgrades[i].nivel = niveis[i];
+        j->upgrades[i].custo = custos[i];
+    }
+    conq[0][0] = q[0]; conq[0][1] = q[1];
+    conq[1][0] = q[2]; conq[1][1] = q[3];
+    return 1;
 }
