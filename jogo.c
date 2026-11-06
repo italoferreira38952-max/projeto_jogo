@@ -40,6 +40,19 @@ typedef struct {
 
 #define ARQUIVO_SAVE "save.txt"
 
+// Ranking: cada partida encerrada vira uma linha "cliques;nome" em ranking.txt
+#define ARQUIVO_RANKING "ranking.txt"
+#define MAX_RANKING 100
+
+typedef struct {
+    char nome[30];
+    long cliques;
+} Registro;
+
+int carregarRanking(Registro v[]);
+void registrarRanking(Jogador *j);
+void ordenarRanking(Registro v[], int n, int porNome);
+
 int salvarJogo(Jogador *j, int conq[2][2]);
 int carregarJogo(Jogador *j, int conq[2][2]);
 void comprarUpgrade(Jogador *j, int i);
@@ -99,6 +112,11 @@ int main(void) {
     float tempoMsg = 0.0f;      // tempo restante da mensagem de save/load na tela
     const char *textoMsg = "";
 
+    Registro ranking[MAX_RANKING];
+    int nRanking = 0;
+    int mostrarRanking = 0; // 1 = tela de ranking aberta
+    int ordemPorNome = 0;   // 0 = por cliques (maior primeiro), 1 = por nome (A-Z)
+
     while (!WindowShouldClose()) {
         int x = GetRenderWidth();
         int y = GetRenderHeight();
@@ -156,7 +174,26 @@ int main(void) {
             int cliqueMouse = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
             int acertouBotao = cliqueMouse && CheckCollisionPointCircle(GetMousePosition(), cbotao, raio);
 
-            if (acertouBotao || IsKeyPressed(KEY_SPACE)) {
+            // tecla R abre/fecha o ranking: lê o arquivo, soma a partida atual e ordena
+            if (IsKeyPressed(KEY_R)) {
+                mostrarRanking = !mostrarRanking;
+                if (mostrarRanking) {
+                    nRanking = carregarRanking(ranking);
+                    if (nRanking < MAX_RANKING) {
+                        strcpy(ranking[nRanking].nome, jogador.nome);
+                        ranking[nRanking].cliques = jogador.stats.totalCliques;
+                        nRanking++;
+                    }
+                    ordenarRanking(ranking, nRanking, ordemPorNome);
+                }
+            }
+            // TAB troca o critério de ordenação
+            if (mostrarRanking && IsKeyPressed(KEY_TAB)) {
+                ordemPorNome = !ordemPorNome;
+                ordenarRanking(ranking, nRanking, ordemPorNome);
+            }
+
+            if (!mostrarRanking && (acertouBotao || IsKeyPressed(KEY_SPACE))) {
                 jogador.moedas += valorClique(&jogador);
                 jogador.stats.totalCliques++;
                 jogador.stats.cliquesManuais++;
@@ -240,7 +277,8 @@ int main(void) {
                        (Vector2){20, 110}, 22, 1, COR_NAVY);
 
             // caixas de upgrade (lado direito)
-            desenharUpgrades(&jogador, fonte, GetMouseX(), GetMouseY(), IsMouseButtonPressed(MOUSE_LEFT_BUTTON));
+            desenharUpgrades(&jogador, fonte, GetMouseX(), GetMouseY(),
+                             IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !mostrarRanking);
 
             // conquistas (canto superior direito, acima das caixas)
             int cx = (int)(x * 0.75f);
@@ -255,8 +293,27 @@ int main(void) {
             if (tempoMsg > 0)
                 DrawTextEx(fonte, textoMsg, (Vector2){20, 140}, 22, 1, COR_NAVY);
 
-            DrawTextEx(fonte, "ESPAÇO clica | S salva | ESC salva e sai",
+            DrawTextEx(fonte, "ESPAÇO clica | S salva | R ranking | ESC sai",
                        (Vector2){20, (float)(y - 34)}, 22, 1, COR_NAVY);
+
+            // tela de ranking (por cima do jogo)
+            if (mostrarRanking) {
+                Rectangle painel = {x * 0.15f, y * 0.08f, x * 0.70f, y * 0.80f};
+                desenharCaixa(painel, COR_CAIXA);
+                DrawTextEx(fonte, "RANKING", (Vector2){painel.x + 20, painel.y + 12}, 30, 1, COR_TEXTO_CLARO);
+                DrawTextEx(fonte, ordemPorNome ? "Ordem: nome (A-Z)  |  TAB muda" : "Ordem: cliques (maior primeiro)  |  TAB muda",
+                           (Vector2){painel.x + 20, painel.y + 50}, 18, 1, COR_TEXTO_SUAVE);
+
+                int mostrar = nRanking < 8 ? nRanking : 8;
+                for (int i = 0; i < mostrar; i++) {
+                    float ly = painel.y + 85 + i * 30;
+                    DrawTextEx(fonte, TextFormat("%d.", i + 1), (Vector2){painel.x + 20, ly}, 22, 1, COR_TEXTO_CLARO);
+                    DrawTextEx(fonte, ranking[i].nome, (Vector2){painel.x + 60, ly}, 22, 1, COR_TEXTO_CLARO);
+                    DrawTextEx(fonte, TextFormat("%ld", ranking[i].cliques),
+                               (Vector2){painel.x + painel.width - 140, ly}, 22, 1, COR_TEXTO_CLARO);
+                }
+                DrawTextEx(fonte, "R fecha", (Vector2){painel.x + 20, painel.y + painel.height - 32}, 18, 1, COR_TEXTO_SUAVE);
+            }
         }
 
         EndDrawing();
@@ -264,6 +321,7 @@ int main(void) {
 
     if (estadoAtual == ESTADO_JOGANDO) {
         salvarJogo(&jogador, conquistas); // salva automaticamente ao sair
+        registrarRanking(&jogador);       // registra a partida no ranking
         free(jogador.upgrades);
     }
     UnloadTexture(texBotao);
@@ -346,7 +404,12 @@ void desenharUpgrades(Jogador *j, Font fonte, int mouseX, int mouseY, int clique
 }
 
 // ---------- Save em arquivo de texto ----------
-
+// Formato do save.txt:
+//   linha 1: nome
+//   linha 2: moedas totalCliques cliquesManuais
+//   linha 3: nivel e custo de cada upgrade (nivel custo nivel custo ...)
+//   linha 4: as 4 conquistas (0 ou 1)
+// Retorna 1 se deu certo, 0 se falhou.
 int salvarJogo(Jogador *j, int conq[2][2]) {
     FILE *f = fopen(ARQUIVO_SAVE, "w");
     if (f == NULL) return 0;
@@ -392,4 +455,45 @@ int carregarJogo(Jogador *j, int conq[2][2]) {
     conq[0][0] = q[0]; conq[0][1] = q[1];
     conq[1][0] = q[2]; conq[1][1] = q[3];
     return 1;
+}
+
+// ---------- Ranking (arquivo de texto + ordenação) ----------
+// Lê ranking.txt (linhas "cliques;nome") para o vetor. Retorna quantos registros leu.
+int carregarRanking(Registro v[]) {
+    FILE *f = fopen(ARQUIVO_RANKING, "r");
+    if (f == NULL) return 0;
+
+    int n = 0;
+    long cliques;
+    char nome[30];
+    while (n < MAX_RANKING && fscanf(f, "%ld;%29[^\n]", &cliques, nome) == 2) {
+        strcpy(v[n].nome, nome);
+        v[n].cliques = cliques;
+        n++;
+    }
+    fclose(f);
+    return n;
+}
+
+// Acrescenta a partida atual no final do ranking.txt (modo "a" = append)
+void registrarRanking(Jogador *j) {
+    FILE *f = fopen(ARQUIVO_RANKING, "a");
+    if (f == NULL) return;
+    fprintf(f, "%ld;%s\n", j->stats.totalCliques, j->nome);
+    fclose(f);
+}
+
+// Bubble Sort: porNome = 0 ordena por cliques (decrescente), 1 ordena por nome (A-Z)
+void ordenarRanking(Registro v[], int n, int porNome) {
+    for (int i = 0; i < n - 1; i++) {
+        for (int k = 0; k < n - i - 1; k++) {
+            int trocar = porNome ? strcmp(v[k].nome, v[k + 1].nome) > 0
+                                 : v[k].cliques < v[k + 1].cliques;
+            if (trocar) {
+                Registro tmp = v[k];
+                v[k] = v[k + 1];
+                v[k + 1] = tmp;
+            }
+        }
+    }
 }
